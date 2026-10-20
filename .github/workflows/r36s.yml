@@ -10,9 +10,15 @@ on:
 env:
   HAXE_VERSION: 4.3.7
 
+# um novo push cancela o run anterior (evita runs travados acumulando)
+concurrency:
+  group: r36s-ndll
+  cancel-in-progress: true
+
 jobs:
   ndll:
     runs-on: ubuntu-24.04-arm
+    timeout-minutes: 45
     steps:
       - name: Checkout
         uses: actions/checkout@main
@@ -76,6 +82,14 @@ jobs:
             sudo chmod +x /usr/local/bin/$name
           done
           export CC=/usr/local/bin/zcc CXX=/usr/local/bin/zcxx
+          # pré-aquece o cache do zig (libc++, libc stubs) em série, com tempo medido
+          printf 'int main(){return 0;}\n' > /tmp/w.c
+          printf '#include <ranges>\n#include <bit>\n#include <source_location>\nint main(){return std::bit_cast<int>(1.0f)==0;}\n' > /tmp/w.cpp
+          time $CC /tmp/w.c -o /tmp/w_c
+          time $CXX /tmp/w.cpp -o /tmp/w_cpp
+          file /tmp/w_cpp
+          echo "--- compilando o Lime (hxcpp)"
+          date
           haxelib run lime rebuild linux -arm64 -release -D HXCPP_ARM64 -D LIME_KMSDRM
 
       - name: Verificar o resultado
