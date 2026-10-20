@@ -1,7 +1,7 @@
 name: R36S NDLL
 
 # Recompila a biblioteca nativa do Lime (lime.ndll) para Linux ARM64 com SDL em KMSDRM,
-# linkando contra um sysroot Debian bullseye (glibc 2.31, GCC 10) para rodar no ArkOS do R36S.
+# compilando com zig cc (glibc alvo 2.28, libc++) para rodar no ArkOS do R36S.
 on:
   push:
     branches: [r36s-port]
@@ -20,8 +20,9 @@ jobs:
       - name: Ferramentas do host
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang lld debootstrap binutils
-          clang --version
+          sudo apt-get install -y debootstrap binutils python3-pip
+          sudo pip3 install --break-system-packages "ziglang==0.14.1" || sudo pip3 install --break-system-packages ziglang
+          python3 -c "import ziglang,os;print(os.path.join(os.path.dirname(ziglang.__file__),'zig'))"
 
       - name: Sysroot Debian bullseye (glibc 2.31, GCC 10)
         run: |
@@ -31,10 +32,10 @@ jobs:
           sudo mount --bind /proc /opt/sysroot/proc
           sudo chroot /opt/sysroot apt-get update
           sudo chroot /opt/sysroot apt-get install -y --no-install-recommends --allow-unauthenticated \
-            libc6-dev g++-10 libstdc++-10-dev libdrm-dev libgbm-dev libegl1-mesa-dev libgles2-mesa-dev \
+            libc6-dev libdrm-dev libgbm-dev libegl1-mesa-dev libgles2-mesa-dev \
             libasound2-dev libdbus-1-dev libudev-dev
           sudo umount /opt/sysroot/proc
-          ls /opt/sysroot/usr/lib/gcc/aarch64-linux-gnu/
+          ls /opt/sysroot/usr/include | head -30
 
       - name: Setup Haxe
         uses: ShadowEngineTeam/setup-haxe@main
@@ -51,8 +52,14 @@ jobs:
 
       - name: Recompilar lime.ndll (KMSDRM)
         run: |
-          FLAGS="--target=aarch64-linux-gnu --sysroot=/opt/sysroot --gcc-install-dir=/opt/sysroot/usr/lib/gcc/aarch64-linux-gnu/10 -static-libstdc++ -static-libgcc"
-          export CC="clang $FLAGS" CXX="clang++ $FLAGS" HXCPP_USE_LD=lld
+          # zig cc: libc++ moderno (C++20 completo) e glibc alvo 2.28; o sysroot só fornece headers/libs de libdrm, gbm, ALSA, dbus, udev
+          ZIG=$(python3 -c "import ziglang,os;print(os.path.join(os.path.dirname(ziglang.__file__),'zig'))")
+          SR=/opt/sysroot
+          EXTRA="-idirafter $SR/usr/include -idirafter $SR/usr/include/aarch64-linux-gnu -idirafter $SR/usr/include/libdrm -idirafter $SR/usr/include/dbus-1.0 -idirafter $SR/usr/lib/aarch64-linux-gnu/dbus-1.0/include -L$SR/usr/lib/aarch64-linux-gnu -L$SR/lib/aarch64-linux-gnu"
+          printf '#!/bin/sh\nexec %s cc -target aarch64-linux-gnu.2.28 %s "$@"\n' "$ZIG" "$EXTRA" | sudo tee /usr/local/bin/zcc >/dev/null
+          printf '#!/bin/sh\nexec %s c++ -std=gnu++20 -target aarch64-linux-gnu.2.28 %s "$@"\n' "$ZIG" "$EXTRA" | sudo tee /usr/local/bin/zcxx >/dev/null
+          sudo chmod +x /usr/local/bin/zcc /usr/local/bin/zcxx
+          export CC=/usr/local/bin/zcc CXX=/usr/local/bin/zcxx
           haxelib run lime rebuild linux -arm64 -release -D HXCPP_ARM64 -D LIME_KMSDRM
 
       - name: Verificar o resultado
@@ -64,15 +71,15 @@ jobs:
           readelf -d $f | grep NEEDED
           echo "--- maior versão de glibc exigida"
           objdump -T $f | grep -o 'GLIBC_[0-9.]*' | sort -uV | tail -5
-          echo "--- GLIBCXX dinâmico (esperado: nenhum)"
-          objdump -T $f | grep -c GLIBCXX || true
+          echo "--- libstdc++ dinâmico (esperado: nenhum)"
+          readelf -d $f | grep -c libstdc || true
           echo "--- KMSDRM presente?"
           strings $f | grep -c -i kmsdrm
           echo "--- X11/Wayland ausentes?"
           strings $f | grep -c -i -E 'libX11|libwayland' || true
           max=$(objdump -T $f | grep -o 'GLIBC_[0-9.]*' | sed 's/GLIBC_//' | sort -uV | tail -1)
           echo "max glibc: $max"
-          test "$(printf '%s\n' 2.30 "$max" | sort -V | tail -1)" = "2.30"
+          test "$(printf '%s\n' 2.28 "$max" | sort -V | tail -1)" = "2.28"
 
       - name: Upload
         uses: actions/upload-artifact@main
