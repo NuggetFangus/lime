@@ -2,10 +2,18 @@
 
 #if (defined(__linux__) && !defined(__ANDROID__))
 # define HAVE_ALSA 1
-# define HAVE_OSS 1
-# define HAVE_PIPEWIRE 1
-# define HAVE_PULSEAUDIO 1
-# define HAVE_JACK 1
+# if defined(LIME_SDL_KMSDRM)
+/* R36S/ArkOS: só ALSA (carregado dinamicamente) e o backend SDL3; sem OSS/PipeWire/Pulse/JACK */
+#  define HAVE_OSS 0
+#  define HAVE_PIPEWIRE 0
+#  define HAVE_PULSEAUDIO 0
+#  define HAVE_JACK 0
+# else
+#  define HAVE_OSS 1
+#  define HAVE_PIPEWIRE 1
+#  define HAVE_PULSEAUDIO 1
+#  define HAVE_JACK 1
+# endif
 #else
 # define HAVE_ALSA 0
 # define HAVE_OSS 0

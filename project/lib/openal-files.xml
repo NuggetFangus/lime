@@ -6,6 +6,7 @@
 
             <section if="linux">
 
+                <compilerflag value="-DLIME_SDL_KMSDRM" if="LIME_KMSDRM" />
                 <compilerflag value="-I/usr/include/pipewire-0.3" />
                 <compilerflag value="-I/usr/include/spa-0.2" />
                 <compilerflag value="-I/usr/include/dbus-1.0" />
@@ -169,10 +170,10 @@
                 <section if="linux">
 
                     <file name="${NATIVE_TOOLKIT_PATH}/openal/alc/backends/alsa.cpp" />
-                    <file name="${NATIVE_TOOLKIT_PATH}/openal/alc/backends/jack.cpp" />
-                    <file name="${NATIVE_TOOLKIT_PATH}/openal/alc/backends/oss.cpp" />
-                    <file name="${NATIVE_TOOLKIT_PATH}/openal/alc/backends/pipewire.cpp" />
-                    <file name="${NATIVE_TOOLKIT_PATH}/openal/alc/backends/pulseaudio.cpp" />
+                    <file name="${NATIVE_TOOLKIT_PATH}/openal/alc/backends/jack.cpp" unless="LIME_KMSDRM" />
+                    <file name="${NATIVE_TOOLKIT_PATH}/openal/alc/backends/oss.cpp" unless="LIME_KMSDRM" />
+                    <file name="${NATIVE_TOOLKIT_PATH}/openal/alc/backends/pipewire.cpp" unless="LIME_KMSDRM" />
+                    <file name="${NATIVE_TOOLKIT_PATH}/openal/alc/backends/pulseaudio.cpp" unless="LIME_KMSDRM" />
 
                 </section>
 
