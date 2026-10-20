@@ -607,6 +607,18 @@
 # define SDL_VIDEO_OPENGL_GLX 1     /**< GLX (OpenGL Extension to X) support */
 /** @} */
 
+#ifdef LIME_SDL_KMSDRM
+/**
+ * @name KMS/DRM Video Driver
+ * @brief Direct rendering without X11/Wayland (ARM Linux handhelds such as the R36S).
+ * @{
+ */
+# define SDL_VIDEO_DRIVER_KMSDRM 1                          /**< KMS/DRM video driver */
+# define SDL_VIDEO_DRIVER_KMSDRM_DYNAMIC "libdrm.so.2"      /**< Dynamic libdrm loading */
+# define SDL_VIDEO_DRIVER_KMSDRM_DYNAMIC_GBM "libgbm.so.1"  /**< Dynamic libgbm loading */
+/** @} */
+#endif
+
 #endif
 /** @} */ /* End of platform-specific configurations */
 
