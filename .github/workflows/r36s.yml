@@ -56,17 +56,22 @@ jobs:
           ZIG=$(python3 -c "import ziglang,os;print(os.path.join(os.path.dirname(ziglang.__file__),'zig'))")
           SR=/opt/sysroot
           EXTRA="-idirafter $SR/usr/include -idirafter $SR/usr/include/aarch64-linux-gnu -idirafter $SR/usr/include/libdrm -idirafter $SR/usr/include/dbus-1.0 -idirafter $SR/usr/lib/aarch64-linux-gnu/dbus-1.0/include -L$SR/usr/lib/aarch64-linux-gnu -L$SR/lib/aarch64-linux-gnu"
-          # wrapper: descarta -march=armv8-a (zig não aceita; o alvo aarch64 padrão já é ARMv8-A)
+          # wrapper: descarta -march=armv8-a (zig não aceita) e só aplica -std=gnu++20 quando a fonte não é .c
           for m in cc c++; do
-            if [ "$m" = cc ]; then name=zcc; std=""; else name=zcxx; std="-std=gnu++20"; fi
+            if [ "$m" = cc ]; then name=zcc; stdflag=""; else name=zcxx; stdflag="-std=gnu++20"; fi
             sudo tee /usr/local/bin/$name >/dev/null <<EOF
           #!/bin/sh
+          sf="$stdflag"
           n=\$#
           while [ \$n -gt 0 ]; do
             a=\$1; shift; n=\$((n-1))
-            case "\$a" in -march=armv8-a) ;; *) set -- "\$@" "\$a";; esac
+            case "\$a" in
+              -march=armv8-a) ;;
+              *.c) sf=""; set -- "\$@" "\$a";;
+              *) set -- "\$@" "\$a";;
+            esac
           done
-          exec $ZIG $m $std -target aarch64-linux-gnu.2.28 $EXTRA "\$@"
+          exec $ZIG $m \$sf -target aarch64-linux-gnu.2.28 $EXTRA "\$@"
           EOF
             sudo chmod +x /usr/local/bin/$name
           done
