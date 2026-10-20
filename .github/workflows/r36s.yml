@@ -1,7 +1,7 @@
 name: R36S NDLL
 
 # Recompila a biblioteca nativa do Lime (lime.ndll) para Linux ARM64 com SDL em KMSDRM,
-# linkando contra um sysroot Debian buster (glibc 2.28) para rodar no ArkOS do R36S.
+# linkando contra um sysroot Debian bullseye (glibc 2.31, GCC 10) para rodar no ArkOS do R36S.
 on:
   push:
     branches: [r36s-port]
@@ -23,15 +23,15 @@ jobs:
           sudo apt-get install -y clang lld debootstrap binutils
           clang --version
 
-      - name: Sysroot Debian buster (glibc 2.28)
+      - name: Sysroot Debian bullseye (glibc 2.31, GCC 10)
         run: |
-          sudo debootstrap --arch=arm64 --variant=minbase --no-check-gpg buster /opt/sysroot http://archive.debian.org/debian/
-          echo "deb http://archive.debian.org/debian buster main" | sudo tee /opt/sysroot/etc/apt/sources.list
+          sudo debootstrap --arch=arm64 --variant=minbase --no-check-gpg bullseye /opt/sysroot http://archive.debian.org/debian/
+          echo "deb http://archive.debian.org/debian bullseye main" | sudo tee /opt/sysroot/etc/apt/sources.list
           echo 'Acquire::Check-Valid-Until "false";' | sudo tee /opt/sysroot/etc/apt/apt.conf.d/99archive
           sudo mount --bind /proc /opt/sysroot/proc
           sudo chroot /opt/sysroot apt-get update
           sudo chroot /opt/sysroot apt-get install -y --no-install-recommends --allow-unauthenticated \
-            libc6-dev g++-8 libstdc++-8-dev libdrm-dev libgbm-dev libegl1-mesa-dev libgles2-mesa-dev \
+            libc6-dev g++-10 libstdc++-10-dev libdrm-dev libgbm-dev libegl1-mesa-dev libgles2-mesa-dev \
             libasound2-dev libdbus-1-dev libudev-dev
           sudo umount /opt/sysroot/proc
           ls /opt/sysroot/usr/lib/gcc/aarch64-linux-gnu/
@@ -49,9 +49,9 @@ jobs:
           haxelib git hxp https://github.com/openfl/hxp 47ef5ae6569cb0961761a2fbb416694df067124c --quiet
           haxelib dev lime ${{ github.workspace }}
 
-      - name: Recompilar lime.ndll (KMSDRM, glibc 2.28)
+      - name: Recompilar lime.ndll (KMSDRM)
         run: |
-          FLAGS="--target=aarch64-linux-gnu --sysroot=/opt/sysroot --gcc-install-dir=/opt/sysroot/usr/lib/gcc/aarch64-linux-gnu/8"
+          FLAGS="--target=aarch64-linux-gnu --sysroot=/opt/sysroot --gcc-install-dir=/opt/sysroot/usr/lib/gcc/aarch64-linux-gnu/10 -static-libstdc++ -static-libgcc"
           export CC="clang $FLAGS" CXX="clang++ $FLAGS" HXCPP_USE_LD=lld
           haxelib run lime rebuild linux -arm64 -release -D HXCPP_ARM64 -D LIME_KMSDRM
 
@@ -64,6 +64,8 @@ jobs:
           readelf -d $f | grep NEEDED
           echo "--- maior versão de glibc exigida"
           objdump -T $f | grep -o 'GLIBC_[0-9.]*' | sort -uV | tail -5
+          echo "--- GLIBCXX dinâmico (esperado: nenhum)"
+          objdump -T $f | grep -c GLIBCXX || true
           echo "--- KMSDRM presente?"
           strings $f | grep -c -i kmsdrm
           echo "--- X11/Wayland ausentes?"
