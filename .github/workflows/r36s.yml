@@ -1,0 +1,80 @@
+name: R36S NDLL
+
+# Recompila a biblioteca nativa do Lime (lime.ndll) para Linux ARM64 com SDL em KMSDRM,
+# linkando contra um sysroot Debian buster (glibc 2.28) para rodar no ArkOS do R36S.
+on:
+  push:
+    branches: [r36s-port]
+  workflow_dispatch:
+
+env:
+  HAXE_VERSION: 4.3.7
+
+jobs:
+  ndll:
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - name: Checkout
+        uses: actions/checkout@main
+
+      - name: Ferramentas do host
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang lld debootstrap binutils
+          clang --version
+
+      - name: Sysroot Debian buster (glibc 2.28)
+        run: |
+          sudo debootstrap --arch=arm64 --variant=minbase --no-check-gpg buster /opt/sysroot http://archive.debian.org/debian/
+          echo "deb http://archive.debian.org/debian buster main" | sudo tee /opt/sysroot/etc/apt/sources.list
+          echo 'Acquire::Check-Valid-Until "false";' | sudo tee /opt/sysroot/etc/apt/apt.conf.d/99archive
+          sudo mount --bind /proc /opt/sysroot/proc
+          sudo chroot /opt/sysroot apt-get update
+          sudo chroot /opt/sysroot apt-get install -y --no-install-recommends --allow-unauthenticated \
+            libc6-dev g++-8 libstdc++-8-dev libdrm-dev libgbm-dev libegl1-mesa-dev libgles2-mesa-dev \
+            libasound2-dev libdbus-1-dev libudev-dev
+          sudo umount /opt/sysroot/proc
+          ls /opt/sysroot/usr/lib/gcc/aarch64-linux-gnu/
+
+      - name: Setup Haxe
+        uses: ShadowEngineTeam/setup-haxe@main
+        with:
+          haxe-version: ${{ env.HAXE_VERSION }}
+
+      - name: Dependências Haxe
+        run: |
+          haxelib setup ~/haxelib
+          haxelib git hxcpp https://github.com/ShadowEngineTeam/hxcpp --quiet
+          haxelib git format https://github.com/HaxeFoundation/format 9d69fb342d030fa120d2deafafbbffad248332b8 --quiet
+          haxelib git hxp https://github.com/openfl/hxp 47ef5ae6569cb0961761a2fbb416694df067124c --quiet
+          haxelib dev lime ${{ github.workspace }}
+
+      - name: Recompilar lime.ndll (KMSDRM, glibc 2.28)
+        run: |
+          FLAGS="--target=aarch64-linux-gnu --sysroot=/opt/sysroot --gcc-install-dir=/opt/sysroot/usr/lib/gcc/aarch64-linux-gnu/8"
+          export CC="clang $FLAGS" CXX="clang++ $FLAGS" HXCPP_USE_LD=lld
+          haxelib run lime rebuild linux -arm64 -release -D HXCPP_ARM64 -D LIME_KMSDRM
+
+      - name: Verificar o resultado
+        run: |
+          f=ndll/LinuxArm64/lime.ndll
+          ls -l ndll/LinuxArm64/
+          file $f
+          echo "--- bibliotecas necessárias"
+          readelf -d $f | grep NEEDED
+          echo "--- maior versão de glibc exigida"
+          objdump -T $f | grep -o 'GLIBC_[0-9.]*' | sort -uV | tail -5
+          echo "--- KMSDRM presente?"
+          strings $f | grep -c -i kmsdrm
+          echo "--- X11/Wayland ausentes?"
+          strings $f | grep -c -i -E 'libX11|libwayland' || true
+          max=$(objdump -T $f | grep -o 'GLIBC_[0-9.]*' | sed 's/GLIBC_//' | sort -uV | tail -1)
+          echo "max glibc: $max"
+          test "$(printf '%s\n' 2.30 "$max" | sort -V | tail -1)" = "2.30"
+
+      - name: Upload
+        uses: actions/upload-artifact@main
+        with:
+          name: LinuxArm64-NDLL-KMSDRM
+          path: ndll/LinuxArm64/
+          if-no-files-found: error

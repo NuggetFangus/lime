@@ -542,12 +542,14 @@
  */
 #define SDL_AUDIO_DRIVER_ALSA 1                                  /**< ALSA (Advanced Linux Sound Architecture) audio driver */
 #define SDL_AUDIO_DRIVER_ALSA_DYNAMIC "libasound.so.2"           /**< Dynamically loaded ALSA shared library */
+#ifndef LIME_SDL_KMSDRM
 #define SDL_AUDIO_DRIVER_JACK 1                                  /**< JACK Audio Connection Kit audio driver */
 #define SDL_AUDIO_DRIVER_JACK_DYNAMIC "libjack.so.0"             /**< Dynamically loaded JACK client library */
 #define SDL_AUDIO_DRIVER_PIPEWIRE 1                              /**< PipeWire (modern multimedia server for audio/video on Linux) */
 #define SDL_AUDIO_DRIVER_PIPEWIRE_DYNAMIC "libpipewire-0.3.so.0" /**< Dynamically loaded PipeWire client library */
 #define SDL_AUDIO_DRIVER_PULSEAUDIO 1                            /**< PulseAudio sound server audio driver */
 #define SDL_AUDIO_DRIVER_PULSEAUDIO_DYNAMIC "libpulse.so.0"      /**< Dynamically loaded PulseAudio shared library */
+#endif
 #define SDL_CAMERA_DRIVER_V4L2 1                                 /**< Video4Linux2 camera driver */
 #define SDL_FILESYSTEM_UNIX 1                                    /**< Unix filesystem operations */
 #define SDL_HAPTIC_LINUX 1                                       /**< Linux haptic (force feedback) support */
@@ -556,6 +558,7 @@
 #define SDL_SENSOR_DUMMY 1                                       /**< Dummy sensor driver (no native support) */
 #define SDL_STORAGE_STEAM 1                                      /**< Steam cloud storage support */
 
+#ifndef LIME_SDL_KMSDRM
 /**
  * @name Wayland Video Driver
  * @brief Wayland Window System video driver with extensions.
@@ -595,6 +598,7 @@
 # define SDL_VIDEO_DRIVER_X11_XSHAPE 1                             /**< Shape extension support */
 # define SDL_VIDEO_DRIVER_X11_XSYNC 1                              /**< Sync extension support */
 /** @} */
+#endif /* !LIME_SDL_KMSDRM */
 
 /**
  * @name OpenGL Support
@@ -604,7 +608,9 @@
 # define SDL_VIDEO_OPENGL 1         /**< OpenGL support */
 # define SDL_VIDEO_OPENGL_EGL 1     /**< EGL support */
 # define SDL_VIDEO_OPENGL_ES2 1     /**< OpenGL ES 2.0 support */
+#ifndef LIME_SDL_KMSDRM
 # define SDL_VIDEO_OPENGL_GLX 1     /**< GLX (OpenGL Extension to X) support */
+#endif
 /** @} */
 
 #ifdef LIME_SDL_KMSDRM
