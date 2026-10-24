@@ -281,7 +281,9 @@
 # define HAVE_NL_LANGINFO 1                                /**< Get locale information */
 # define HAVE_O_CLOEXEC 1                                  /**< Close-on-exec flag */
 # define HAVE_POSIX_FALLOCATE 1                            /**< Allocate file space */
+# ifndef LIME_SDL_KMSDRM /* glibc 2.29+; o build R36S mira glibc 2.28 */
 # define HAVE_POSIX_SPAWN_FILE_ACTIONS_ADDCHDIR_NP 1       /**< Change dir in posix_spawn */
+# endif
 # define HAVE_PPOLL 1                                      /**< Poll with signal mask */
 # define HAVE_PTHREAD_SETNAME_NP 1                         /**< Set thread name */
 # define HAVE_RINDEX 1                                     /**< Find character from end (legacy) */
